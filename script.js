@@ -300,26 +300,77 @@ function showCalculationProcess() {
     
     let html = '<h3>计算过程</h3>';
     
-    // 峰值信息
-    html += '<h4>峰值点识别结果</h4>';
+    // 1. 数据收集与预处理
+    html += '<h4>1. 数据收集与预处理</h4>';
+    html += '<p>实验数据格式要求：</p>';
+    html += '<pre>| UG2K/V | I/nA |\n| ---- | ---- |\n| 1.0 | 0.0 |\n| 2.0 | 0.0 |\n...</pre>';
+    html += '<p>数据预处理：检查数据完整性，去除异常值</p>';
+    
+    // 2. 峰值检测
+    html += '<h4>2. 峰值点识别</h4>';
+    html += '<p>采用滑动窗口法识别峰值点，窗口大小=5：</p>';
+    html += '<p>判断条件：</p>';
+    html += '<ul>';
+    html += '<li>当前点电流值 > 左侧5个点的电流值</li>';
+    html += '<li>当前点电流值 > 右侧5个点的电流值</li>';
+    html += '<li>电流值 > 最大电流的10% (避免噪声干扰)</li>';
+    html += '</ul>';
     html += '<table><tr><th>峰序数</th><th>电压(V)</th><th>电流(nA)</th></tr>';
     processedData.peaks.forEach((peak, i) => {
         html += `<tr><td>${i+1}</td><td>${peak.voltage.toFixed(2)}</td><td>${peak.current.toFixed(2)}</td></tr>`;
     });
     html += '</table>';
     
-    // 拟合过程
+    // 3. 最小二乘法拟合
     if (processedData.fit) {
-        html += '<h4>最小二乘法拟合</h4>';
-        html += `<p>拟合方程: U<sub>G2K</sub> = ${processedData.fit.intercept.toFixed(2)} + ${processedData.fit.slope.toFixed(2)} × n</p>`;
+        html += '<h4>3. 最小二乘法拟合</h4>';
+        html += '<p>根据弗兰克-赫兹实验原理：</p>';
+        html += '<p>U<sub>G2K</sub> = a + nΔU</p>';
+        html += '<p>其中：</p>';
+        html += '<ul>';
+        html += '<li>n - 峰序数</li>';
+        html += '<li>ΔU - 第一激发电位</li>';
+        html += '<li>a - 截距</li>';
+        html += '</ul>';
+        
+        html += '<p>最小二乘法计算步骤：</p>';
+        html += '<ol>';
+        html += '<li>计算各项和：Σx, Σy, Σxy, Σx²</li>';
+        html += '<li>计算斜率：b = (nΣxy - ΣxΣy)/(nΣx² - (Σx)²)</li>';
+        html += '<li>计算截距：a = (Σy - bΣx)/n</li>';
+        html += '</ol>';
+        
+        html += `<p>拟合结果：U<sub>G2K</sub> = ${processedData.fit.intercept.toFixed(2)} + ${processedData.fit.slope.toFixed(2)} × n</p>`;
         html += `<p>相关系数 R² = ${processedData.fit.rSquared.toFixed(4)}</p>`;
+        html += `<p>第一激发电位 ΔU = ${processedData.fit.slope.toFixed(2)} V</p>`;
     }
     
-    // 不确定度
+    // 4. 不确定度分析
     if (processedData.uncertainty) {
-        html += '<h4>不确定度分析</h4>';
+        html += '<h4>4. 不确定度分析</h4>';
+        html += '<p>计算步骤：</p>';
+        html += '<ol>';
+        html += '<li>计算残差平方和：Σ(y_i - ŷ_i)²</li>';
+        html += '<li>计算标准差：s = √[Σ(y_i - ŷ_i)²/(n-2)]</li>';
+        html += '<li>计算Sxx = Σx² - (Σx)²/n</li>';
+        html += '<li>斜率不确定度：u(b) = s/√Sxx</li>';
+        html += '</ol>';
+        
         html += `<p>斜率不确定度: ±${processedData.uncertainty.slopeError.toFixed(4)} V</p>`;
         html += `<p>95%置信区间: [${processedData.uncertainty.confidenceInterval.lower.toFixed(2)}, ${processedData.uncertainty.confidenceInterval.upper.toFixed(2)}] V</p>`;
+    }
+    
+    // 5. 能级差计算
+    if (processedData.fit) {
+        html += '<h4>5. 能级差计算</h4>';
+        html += '<p>根据公式：ΔE = eΔU</p>';
+        html += '<p>其中：</p>';
+        html += '<ul>';
+        html += '<li>e - 电子电荷 (1.602×10⁻¹⁹ C)</li>';
+        html += '<li>ΔU - 第一激发电位</li>';
+        html += '</ul>';
+        html += `<p>计算结果：ΔE = ${(processedData.fit.slope * 1.602e-19).toExponential(2)} J</p>`;
+        html += `<p>温度当量：${(processedData.fit.slope * 1.602e-19 / 1.3806e-23).toFixed(0)} K</p>`;
     }
     
     processDiv.innerHTML = html;
