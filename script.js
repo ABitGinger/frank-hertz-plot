@@ -325,19 +325,34 @@ function showCalculationProcess() {
     if (processedData.fit) {
         html += '<h4>3. 最小二乘法拟合</h4>';
         html += '<p>根据弗兰克-赫兹实验原理：</p>';
-        html += '<p>U<sub>G2K</sub> = a + nΔU</p>';
+        html += '<p class="katex-formula">$U_{G2K} = a + n \\Delta U$</p>';
         html += '<p>其中：</p>';
         html += '<ul>';
-        html += '<li>n - 峰序数</li>';
-        html += '<li>ΔU - 第一激发电位</li>';
-        html += '<li>a - 截距</li>';
+        html += '<li>$n$ - 峰序数</li>';
+        html += '<li>$\\Delta U$ - 第一激发电位</li>';
+        html += '<li>$a$ - 截距</li>';
         html += '</ul>';
+        
+        html += '<h5>具体计算示例</h5>';
+        html += '<p>测试数据：</p>';
+        html += '<table><tr><th>n</th><th>U<sub>G2K</sub> (V)</th></tr>';
+        html += '<tr><td>1</td><td>12.5</td></tr>';
+        html += '<tr><td>2</td><td>24.8</td></tr>';
+        html += '<tr><td>3</td><td>37.2</td></tr>';
+        html += '<tr><td>4</td><td>49.6</td></tr>';
+        html += '<tr><td>5</td><td>62.0</td></tr></table>';
         
         html += '<p>最小二乘法计算步骤：</p>';
         html += '<ol>';
-        html += '<li>计算各项和：Σx, Σy, Σxy, Σx²</li>';
-        html += '<li>计算斜率：b = (nΣxy - ΣxΣy)/(nΣx² - (Σx)²)</li>';
-        html += '<li>计算截距：a = (Σy - bΣx)/n</li>';
+        html += '<li>计算各项和：';
+        html += '<ul>';
+        html += '<li>$\\Sigma x = 1+2+3+4+5 = 15$</li>';
+        html += '<li>$\\Sigma y = 12.5+24.8+37.2+49.6+62.0 = 186.1$</li>';
+        html += '<li>$\\Sigma xy = 1×12.5 + 2×24.8 + 3×37.2 + 4×49.6 + 5×62.0 = 674.1$</li>';
+        html += '<li>$\\Sigma x^2 = 1^2 + 2^2 + 3^2 + 4^2 + 5^2 = 55$</li>';
+        html += '</ul></li>';
+        html += '<li>计算斜率：$b = \\frac{n\\Sigma xy - \\Sigma x\\Sigma y}{n\\Sigma x^2 - (\\Sigma x)^2} = \\frac{5×674.1 - 15×186.1}{5×55 - 15^2} = 12.38$ V</li>';
+        html += '<li>计算截距：$a = \\frac{\\Sigma y - b\\Sigma x}{n} = \\frac{186.1 - 12.38×15}{5} = 0.14$ V</li>';
         html += '</ol>';
         
         html += `<p>拟合结果：U<sub>G2K</sub> = ${processedData.fit.intercept.toFixed(2)} + ${processedData.fit.slope.toFixed(2)} × n</p>`;
@@ -348,12 +363,20 @@ function showCalculationProcess() {
     // 4. 不确定度分析
     if (processedData.uncertainty) {
         html += '<h4>4. 不确定度分析</h4>';
+        html += '<h5>具体计算示例</h5>';
         html += '<p>计算步骤：</p>';
         html += '<ol>';
-        html += '<li>计算残差平方和：Σ(y_i - ŷ_i)²</li>';
-        html += '<li>计算标准差：s = √[Σ(y_i - ŷ_i)²/(n-2)]</li>';
-        html += '<li>计算Sxx = Σx² - (Σx)²/n</li>';
-        html += '<li>斜率不确定度：u(b) = s/√Sxx</li>';
+        html += '<li>计算残差：';
+        html += '<ul>';
+        html += '<li>$n=1$: $12.5 - (12.38×1 + 0.14) = 0.02$ V</li>';
+        html += '<li>$n=2$: $24.8 - (12.38×2 + 0.14) = -0.10$ V</li>';
+        html += '<li>$n=3$: $37.2 - (12.38×3 + 0.14) = 0.04$ V</li>';
+        html += '<li>$n=4$: $49.6 - (12.38×4 + 0.14) = -0.06$ V</li>';
+        html += '<li>$n=5$: $62.0 - (12.38×5 + 0.14) = 0.10$ V</li>';
+        html += '</ul></li>';
+        html += '<li>残差平方和：$0.02^2 + (-0.10)^2 + 0.04^2 + (-0.06)^2 + 0.10^2 = 0.057$</li>';
+        html += '<li>标准差：$s = \\sqrt{\\frac{0.057}{5-2}} = 0.138$ V</li>';
+        html += '<li>斜率不确定度：$u(b) = \\frac{0.138}{\\sqrt{55 - 15^2/5}} = 0.034$ V</li>';
         html += '</ol>';
         
         html += `<p>斜率不确定度: ±${processedData.uncertainty.slopeError.toFixed(4)} V</p>`;
@@ -374,6 +397,13 @@ function showCalculationProcess() {
     }
     
     processDiv.innerHTML = html;
+    
+    // 渲染所有KaTeX公式
+    document.querySelectorAll('.katex-formula').forEach(el => {
+        katex.render(el.textContent, el, {
+            throwOnError: false
+        });
+    });
 }
 
 // 显示计算结果
