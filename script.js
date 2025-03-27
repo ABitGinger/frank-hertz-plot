@@ -346,40 +346,56 @@ function showCalculationProcess() {
         
         
         html += '<p>最小二乘法计算步骤：</p>';
+        // 动态计算各项和
+        const n = processedData.peaks.length;
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        for (let i = 0; i < n; i++) {
+            const x = i + 1;
+            const y = processedData.peaks[i].voltage;
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumX2 += x * x;
+        }
+
         html += '<ol>';
         html += '<li>计算各项和：';
         html += '<ul>';
-        html += '<li>$\\Sigma x = 1+2+3+4+5 = 15$</li>';
-        html += '<li>$\\Sigma y = 12.5+24.8+37.2+49.6+62.0 = 186.1$</li>';
-        html += '<li>$\\Sigma xy = 1×12.5 + 2×24.8 + 3×37.2 + 4×49.6 + 5×62.0 = 674.1$</li>';
-        html += '<li>$\\Sigma x^2 = 1^2 + 2^2 + 3^2 + 4^2 + 5^2 = 55$</li>';
+        html += `<li>$\\Sigma x = ${processedData.peaks.map((_,i) => i+1).join('+')} = ${sumX}$</li>`;
+        html += `<li>$\\Sigma y = ${processedData.peaks.map(p => p.voltage.toFixed(2)).join('+')} = ${sumY.toFixed(2)}$</li>`;
+        html += `<li>$\\Sigma xy = ${processedData.peaks.map((p,i) => (i+1)+'×'+p.voltage.toFixed(2)).join(' + ')} = ${sumXY.toFixed(2)}$</li>`;
+        html += `<li>$\\Sigma x^2 = ${processedData.peaks.map((_,i) => (i+1)+'^2').join(' + ')} = ${sumX2}$</li>`;
         html += '</ul></li>';
-        html += '<li>计算斜率：$b = \\frac{n\\Sigma xy - \\Sigma x\\Sigma y}{n\\Sigma x^2 - (\\Sigma x)^2} = \\frac{5×674.1 - 15×186.1}{5×55 - 15^2} = 12.38$ V</li>';
-        html += '<li>计算截距：$a = \\frac{\\Sigma y - b\\Sigma x}{n} = \\frac{186.1 - 12.38×15}{5} = 0.14$ V</li>';
+        html += `<li>计算斜率：$b = \\frac{n\\Sigma xy - \\Sigma x\\Sigma y}{n\\Sigma x^2 - (\\Sigma x)^2} = \\frac{${n}×${sumXY.toFixed(2)} - ${sumX}×${sumY.toFixed(2)}}{${n}×${sumX2} - ${sumX}^2} = ${processedData.fit.slope.toFixed(2)}$ V</li>`;
+        html += `<li>计算截距：$a = \\frac{\\Sigma y - b\\Sigma x}{n} = \\frac{${sumY.toFixed(2)} - ${processedData.fit.slope.toFixed(2)}×${sumX}}{${n}} = ${processedData.fit.intercept.toFixed(2)}$ V</li>`;
         html += '</ol>';
         
         html += `<p>拟合结果：U<sub>G2K</sub> = ${processedData.fit.intercept.toFixed(2)} + ${processedData.fit.slope.toFixed(2)} × n</p>`;
         html += `<p>相关系数 R² = ${processedData.fit.rSquared.toFixed(4)}</p>`;
-        html += `<p>第一激发电位 ΔU = ${processedData.fit.slope.toFixed(2)} V</p>`;
+        html += `<p>第一激发电位 ΔU = ${processedData.fit.slope.toFixed(2)} eV</p>`;
     }
     
     // 4. 不确定度分析
     if (processedData.uncertainty) {
         html += '<h4>4. 不确定度分析</h4>';
-        html += '<h5>具体计算示例</h5>';
+        html += '<h5>不确定度计算</h5>';
         html += '<p>计算步骤：</p>';
         html += '<ol>';
         html += '<li>计算残差：';
         html += '<ul>';
-        html += '<li>$n=1$: $12.5 - (12.38×1 + 0.14) = 0.02$ V</li>';
-        html += '<li>$n=2$: $24.8 - (12.38×2 + 0.14) = -0.10$ V</li>';
-        html += '<li>$n=3$: $37.2 - (12.38×3 + 0.14) = 0.04$ V</li>';
-        html += '<li>$n=4$: $49.6 - (12.38×4 + 0.14) = -0.06$ V</li>';
-        html += '<li>$n=5$: $62.0 - (12.38×5 + 0.14) = 0.10$ V</li>';
+        processedData.peaks.forEach((peak, i) => {
+            const x = i + 1;
+            const residual = peak.voltage - (processedData.fit.slope * x + processedData.fit.intercept);
+            html += `<li>$n=${x}$: $${peak.voltage.toFixed(2)} - (${processedData.fit.slope.toFixed(2)}×${x} + ${processedData.fit.intercept.toFixed(2)}) = ${residual.toFixed(2)}$ V</li>`;
+        });
         html += '</ul></li>';
-        html += '<li>残差平方和：$0.02^2 + (-0.10)^2 + 0.04^2 + (-0.06)^2 + 0.10^2 = 0.057$</li>';
-        html += '<li>标准差：$s = \\sqrt{\\frac{0.057}{5-2}} = 0.138$ V</li>';
-        html += '<li>斜率不确定度：$u(b) = \\frac{0.138}{\\sqrt{55 - 15^2/5}} = 0.034$ V</li>';
+        html += `<li>残差平方和：$${processedData.peaks.map((peak,i) => {
+            const x = i + 1;
+            const residual = peak.voltage - (processedData.fit.slope * x + processedData.fit.intercept);
+            return residual.toFixed(2) + '^2';
+        }).join(' + ')} = ${processedData.uncertainty.slopeError.toFixed(4)}$</li>`;
+        html += `<li>标准差：$s = \\sqrt{\\frac{${processedData.uncertainty.slopeError.toFixed(4)}}{${n}-2}} = ${(Math.sqrt(processedData.uncertainty.slopeError/(n-2))).toFixed(3)}$ V</li>`;
+        html += `<li>斜率不确定度：$u(b) = \\frac{${(Math.sqrt(processedData.uncertainty.slopeError/(n-2)).toFixed(3)}}{\\sqrt{${sumX2} - ${sumX}^2/${n}}} = ${processedData.uncertainty.slopeError.toFixed(4)}$ V</li>`;
         html += '</ol>';
         
         html += `<p>斜率不确定度: ±${processedData.uncertainty.slopeError.toFixed(4)} V</p>`;
@@ -418,7 +434,7 @@ function showResults() {
     if (!resultDiv || !processedData || !processedData.fit) return;
     
     let html = '<h3>实验结果</h3>';
-    html += `<p>氩原子第一激发电位: <strong>${processedData.fit.slope.toFixed(2)} ± ${processedData.uncertainty.slopeError.toFixed(2)} V</strong></p>`;
+    html += `<p>氩原子第一激发电位: <strong>${processedData.fit.slope.toFixed(2)} ± ${processedData.uncertainty.slopeError.toFixed(2)} eV</strong></p>`;
     html += `<p>能级差: <strong>${(processedData.fit.slope * 1.602e-19).toExponential(2)} J</strong></p>`;
     
     resultDiv.innerHTML = html;
