@@ -10,17 +10,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化图表
     initChart();
-    
-    // 初始化KaTeX自动渲染
-    renderMathInElement(document.body, {
-        delimiters: [
-            {left: '$$', right: '$$', display: true},
-            {left: '$', right: '$', display: false},
-            {left: '\\(', right: '\\)', display: false},
-            {left: '\\[', right: '\\]', display: true}
-        ],
-        throwOnError: false
-    });
 });
 
 // 处理文件上传
@@ -311,121 +300,29 @@ function showCalculationProcess() {
     
     let html = '<h3>计算过程</h3>';
     
-    // 1. 数据收集与预处理
-    html += '<h4>1. 数据收集与预处理</h4>';
-    html += '<p>实验数据格式要求：</p>';
-    html += '<pre>| UG2K/V | I/nA |\n| ---- | ---- |\n| 1.0 | 0.0 |\n| 2.0 | 0.0 |\n...</pre>';
-    html += '<p>数据预处理：检查数据完整性，去除异常值</p>';
-    
-    // 2. 峰值检测
-    html += '<h4>2. 峰值点识别</h4>';
-    html += '<p>采用滑动窗口法识别峰值点，窗口大小=5：</p>';
-    html += '<p>判断条件：</p>';
-    html += '<ul>';
-    html += '<li>当前点电流值 > 左侧5个点的电流值</li>';
-    html += '<li>当前点电流值 > 右侧5个点的电流值</li>';
-    html += '<li>电流值 > 最大电流的10% (避免噪声干扰)</li>';
-    html += '</ul>';
+    // 峰值信息
+    html += '<h4>峰值点识别结果</h4>';
     html += '<table><tr><th>峰序数</th><th>电压(V)</th><th>电流(nA)</th></tr>';
     processedData.peaks.forEach((peak, i) => {
         html += `<tr><td>${i+1}</td><td>${peak.voltage.toFixed(2)}</td><td>${peak.current.toFixed(2)}</td></tr>`;
     });
     html += '</table>';
     
-    // 3. 最小二乘法拟合
+    // 拟合过程
     if (processedData.fit) {
-        html += '<h4>3. 最小二乘法拟合</h4>';
-        html += '<p>根据弗兰克-赫兹实验原理：</p>';
-        html += '<p>$$U_{G2K} = a + n \\Delta U$$</p>';
-        html += '<p>其中：</p>';
-        html += '<ul>';
-        html += '<li>$n$ - 峰序数</li>';
-        html += '<li>$\\Delta U$ - 第一激发电位</li>';
-        html += '<li>$a$ - 截距</li>';
-        html += '</ul>';
-        
-        
-        html += '<p>最小二乘法计算步骤：</p>';
-        // 动态计算各项和
-        const n = processedData.peaks.length;
-        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-        for (let i = 0; i < n; i++) {
-            const x = i + 1;
-            const y = processedData.peaks[i].voltage;
-            sumX += x;
-            sumY += y;
-            sumXY += x * y;
-            sumX2 += x * x;
-        }
-
-        html += '<ol>';
-        html += '<li>计算各项和：';
-        html += '<ul>';
-        html += `<li>$\\Sigma x = ${processedData.peaks.map((_,i) => i+1).join('+')} = ${sumX}$</li>`;
-        html += `<li>$\\Sigma y = ${processedData.peaks.map(p => p.voltage.toFixed(2)).join('+')} = ${sumY.toFixed(2)}$</li>`;
-        html += `<li>$\\Sigma xy = ${processedData.peaks.map((p,i) => (i+1)+'×'+p.voltage.toFixed(2)).join(' + ')} = ${sumXY.toFixed(2)}$</li>`;
-        html += `<li>$\\Sigma x^2 = ${processedData.peaks.map((_,i) => (i+1)+'^2').join(' + ')} = ${sumX2}$</li>`;
-        html += '</ul></li>';
-        html += `<li>计算斜率：$b = \\frac{n\\Sigma xy - \\Sigma x\\Sigma y}{n\\Sigma x^2 - (\\Sigma x)^2} = \\frac{${n}×${sumXY.toFixed(2)} - ${sumX}×${sumY.toFixed(2)}}{${n}×${sumX2} - ${sumX}^2} = ${processedData.fit.slope.toFixed(2)}$ V</li>`;
-        html += `<li>计算截距：$a = \\frac{\\Sigma y - b\\Sigma x}{n} = \\frac{${sumY.toFixed(2)} - ${processedData.fit.slope.toFixed(2)}×${sumX}}{${n}} = ${processedData.fit.intercept.toFixed(2)}$ V</li>`;
-        html += '</ol>';
-        
-        html += `<p>拟合结果：U<sub>G2K</sub> = ${processedData.fit.intercept.toFixed(2)} + ${processedData.fit.slope.toFixed(2)} × n</p>`;
+        html += '<h4>最小二乘法拟合</h4>';
+        html += `<p>拟合方程: U<sub>G2K</sub> = ${processedData.fit.intercept.toFixed(2)} + ${processedData.fit.slope.toFixed(2)} × n</p>`;
         html += `<p>相关系数 R² = ${processedData.fit.rSquared.toFixed(4)}</p>`;
-        html += `<p>第一激发电位 ΔU = ${processedData.fit.slope.toFixed(2)} eV</p>`;
     }
     
-    // 4. 不确定度分析
+    // 不确定度
     if (processedData.uncertainty) {
-        html += '<h4>4. 不确定度分析</h4>';
-        html += '<h5>不确定度计算</h5>';
-        html += '<p>计算步骤：</p>';
-        html += '<ol>';
-        html += '<li>计算残差：';
-        html += '<ul>';
-        processedData.peaks.forEach((peak, i) => {
-            const x = i + 1;
-            const residual = peak.voltage - (processedData.fit.slope * x + processedData.fit.intercept);
-            html += `<li>$n=${x}$: $${peak.voltage.toFixed(2)} - (${processedData.fit.slope.toFixed(2)}×${x} + ${processedData.fit.intercept.toFixed(2)}) = ${residual.toFixed(2)}$ V</li>`;
-        });
-        html += '</ul></li>';
-        html += `<li>残差平方和：$${processedData.peaks.map((peak,i) => {
-            const x = i + 1;
-            const residual = peak.voltage - (processedData.fit.slope * x + processedData.fit.intercept);
-            return residual.toFixed(2) + '^2';
-        }).join(' + ')} = ${processedData.uncertainty.slopeError.toFixed(4)}$</li>`;
-        html += `<li>标准差：$s = \\sqrt{\\frac{${processedData.uncertainty.slopeError.toFixed(4)}}{${n}-2}} = ${(Math.sqrt(processedData.uncertainty.slopeError/(n-2))).toFixed(3)}$ V</li>`;
-        html += `<li>斜率不确定度：$u(b) = \\frac{${(Math.sqrt(processedData.uncertainty.slopeError/(n-2)).toFixed(3)}}{\\sqrt{${sumX2} - ${sumX}^2/${n}}} = ${processedData.uncertainty.slopeError.toFixed(4)}$ V</li>`;
-        html += '</ol>';
-        
+        html += '<h4>不确定度分析</h4>';
         html += `<p>斜率不确定度: ±${processedData.uncertainty.slopeError.toFixed(4)} V</p>`;
         html += `<p>95%置信区间: [${processedData.uncertainty.confidenceInterval.lower.toFixed(2)}, ${processedData.uncertainty.confidenceInterval.upper.toFixed(2)}] V</p>`;
     }
     
-    // 5. 能级差计算
-    if (processedData.fit) {
-        html += '<h4>5. 能级差计算</h4>';
-        html += '<p>根据公式：ΔE = eΔU</p>';
-        html += '<p>其中：</p>';
-        html += '<ul>';
-        html += '<li>e - 电子电荷 (1.602×10⁻¹⁹ C)</li>';
-        html += '<li>ΔU - 第一激发电位</li>';
-        html += '</ul>';
-        html += `<p>计算结果：ΔE = ${(processedData.fit.slope * 1.602e-19).toExponential(2)} J</p>`;
-    }
-    
     processDiv.innerHTML = html;
-    
-    // 自动渲染所有KaTeX公式
-    renderMathInElement(processDiv, {
-        delimiters: [
-            {left: '$$', right: '$$', display: true},
-            {left: '$', right: '$', display: false},
-            {left: '\\(', right: '\\)', display: false},
-            {left: '\\[', right: '\\]', display: true}
-        ],
-        throwOnError: false
-    });
 }
 
 // 显示计算结果
@@ -434,8 +331,8 @@ function showResults() {
     if (!resultDiv || !processedData || !processedData.fit) return;
     
     let html = '<h3>实验结果</h3>';
-    html += `<p>氩原子第一激发电位: <strong>${processedData.fit.slope.toFixed(2)} ± ${processedData.uncertainty.slopeError.toFixed(2)} eV</strong></p>`;
-    html += `<p>能级差: <strong>${(processedData.fit.slope * 1.602e-19).toExponential(2)} J</strong></p>`;
+    html += `<p>氩原子第一激发电位: <strong>${processedData.fit.slope.toFixed(2)} ± ${processedData.uncertainty.slopeError.toFixed(2)} V</strong></p>`;
+    html += `<p>能级差: <strong>${(processedData.fit.slope * 1.602e-19).toExponential(2)} J</strong> (${(processedData.fit.slope * 1.602e-19 / 1.3806e-23).toFixed(0)} K)</p>`;
     
     resultDiv.innerHTML = html;
 }
