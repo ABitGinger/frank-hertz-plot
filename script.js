@@ -10,6 +10,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化图表
     initChart();
+    
+    // 初始化KaTeX自动渲染
+    renderMathInElement(document.body, {
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '\\[', right: '\\]', display: true}
+        ],
+        throwOnError: false
+    });
 });
 
 // 处理文件上传
@@ -325,7 +336,7 @@ function showCalculationProcess() {
     if (processedData.fit) {
         html += '<h4>3. 最小二乘法拟合</h4>';
         html += '<p>根据弗兰克-赫兹实验原理：</p>';
-        html += '<p class="katex-formula">$U_{G2K} = a + n \\Delta U$</p>';
+        html += '<p>$$U_{G2K} = a + n \\Delta U$$</p>';
         html += '<p>其中：</p>';
         html += '<ul>';
         html += '<li>$n$ - 峰序数</li>';
@@ -398,11 +409,15 @@ function showCalculationProcess() {
     
     processDiv.innerHTML = html;
     
-    // 渲染所有KaTeX公式
-    document.querySelectorAll('.katex-formula').forEach(el => {
-        katex.render(el.textContent, el, {
-            throwOnError: false
-        });
+    // 自动渲染所有KaTeX公式
+    renderMathInElement(processDiv, {
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '\\[', right: '\\]', display: true}
+        ],
+        throwOnError: false
     });
 }
 
