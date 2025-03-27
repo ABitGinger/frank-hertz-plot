@@ -492,7 +492,7 @@ function showResults() {
     if (!resultDiv || !processedData || !processedData.fit) return;
     
     let html = '<h3>实验结果</h3>';
-    html += `<p>氩原子第一激发电位: <strong>${processedData.fit.slope.toFixed(2)} ± ${processedData.uncertainty.slopeError.toFixed(2)} V</strong></p>`;
+    html += `<p>氩原子第一激发电位: <strong>${processedData.fit.slope.toFixed(2)} ± ${processedData.uncertainty.slopeError.toFixed(2)} eV</strong></p>`;
     html += `<p>能级差: <strong>${(processedData.fit.slope * 1.602e-19).toExponential(2)} J</strong> (${(processedData.fit.slope * 1.602e-19 / 1.3806e-23).toFixed(0)} K)</p>`;
     
     resultDiv.innerHTML = html;
