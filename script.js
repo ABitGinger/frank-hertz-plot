@@ -73,39 +73,110 @@ function processData(data) {
     };
 }
 
+// 高斯平滑函数
+function gaussianSmooth(data, sigma = 1) {
+    const kernel = [];
+    const radius = Math.ceil(3 * sigma);
+    let sum = 0;
+    
+    // 创建高斯核
+    for (let i = -radius; i <= radius; i++) {
+        const val = Math.exp(-(i * i) / (2 * sigma * sigma));
+        kernel.push(val);
+        sum += val;
+    }
+    
+    // 归一化
+    kernel.forEach((val, i) => kernel[i] = val / sum);
+    
+    // 应用平滑
+    const smoothed = [];
+    for (let i = 0; i < data.length; i++) {
+        let smoothedVal = 0;
+        for (let j = -radius; j <= radius; j++) {
+            const idx = i + j;
+            if (idx >= 0 && idx < data.length) {
+                smoothedVal += data[idx].current * kernel[j + radius];
+            }
+        }
+        smoothed.push({
+            voltage: data[i].voltage,
+            current: smoothedVal
+        });
+    }
+    
+    return smoothed;
+}
+
+// 计算导数
+function calculateDerivative(data) {
+    const derivative = [];
+    for (let i = 1; i < data.length - 1; i++) {
+        const dx = data[i + 1].voltage - data[i - 1].voltage;
+        const dy = data[i + 1].current - data[i - 1].current;
+        derivative.push({
+            voltage: data[i].voltage,
+            value: dy / dx
+        });
+    }
+    return derivative;
+}
+
 // 识别电流峰值
 function findPeaks(data) {
-    const peaks = [];
-    const windowSize = 5; // 滑动窗口大小
+    // 1. 高斯平滑预处理
+    const smoothed = gaussianSmooth(data, 2);
     
-    for (let i = windowSize; i < data.length - windowSize; i++) {
-        let isPeak = true;
-        
-        // 检查左侧窗口
-        for (let j = 1; j <= windowSize; j++) {
-            if (data[i].current <= data[i - j].current) {
-                isPeak = false;
-                break;
+    // 2. 计算一阶导数
+    const derivative = calculateDerivative(smoothed);
+    
+    // 3. 寻找导数过零点(从正变负)
+    const peaks = [];
+    const minPeakHeight = 0.1 * Math.max(...data.map(d => d.current));
+    const minPeakWidth = 3; // 最小峰宽(数据点数)
+    
+    for (let i = 1; i < derivative.length - 1; i++) {
+        // 检测导数从正变负的点
+        if (derivative[i-1].value > 0 && derivative[i].value <= 0) {
+            // 在原始数据中找到精确的峰值位置
+            let peakIndex = i + 1; // 补偿导数计算的偏移
+            let left = peakIndex - 1;
+            let right = peakIndex + 1;
+            
+            // 确保是局部最大值
+            while (left >= 0 && data[left].current > data[peakIndex].current) {
+                peakIndex = left;
+                left--;
             }
-        }
-        
-        // 检查右侧窗口
-        if (isPeak) {
-            for (let j = 1; j <= windowSize; j++) {
-                if (data[i].current <= data[i + j].current) {
-                    isPeak = false;
-                    break;
+            while (right < data.length && data[right].current > data[peakIndex].current) {
+                peakIndex = right;
+                right++;
+            }
+            
+            // 检查峰高和峰宽
+            if (data[peakIndex].current >= minPeakHeight) {
+                // 计算峰宽
+                let leftWidth = peakIndex;
+                while (leftWidth > 0 && data[leftWidth].current > 0.5 * data[peakIndex].current) {
+                    leftWidth--;
+                }
+                
+                let rightWidth = peakIndex;
+                while (rightWidth < data.length - 1 && data[rightWidth].current > 0.5 * data[peakIndex].current) {
+                    rightWidth++;
+                }
+                
+                const peakWidth = rightWidth - leftWidth;
+                
+                if (peakWidth >= minPeakWidth) {
+                    peaks.push({
+                        voltage: data[peakIndex].voltage,
+                        current: data[peakIndex].current,
+                        peakIndex: peakIndex,
+                        width: peakWidth
+                    });
                 }
             }
-        }
-        
-        // 确保峰值电流足够大(避免噪声)
-        if (isPeak && data[i].current > 0.1 * Math.max(...data.map(d => d.current))) {
-            peaks.push({
-                voltage: data[i].voltage,
-                current: data[i].current,
-                peakIndex: i
-            });
         }
     }
     
@@ -302,10 +373,15 @@ function showCalculationProcess() {
     
     // 1. 峰值识别
     html += '<h4>1. 峰值点识别</h4>';
-    html += '<p>采用滑动窗口法识别电流峰值点，窗口大小=5个数据点</p>';
-    html += '<table><tr><th>峰序数(n)</th><th>电压U<sub>G2K</sub>(V)</th><th>电流I(nA)</th></tr>';
+    html += '<p>采用基于导数的高斯平滑峰值检测算法：</p>';
+    html += '<ol>';
+    html += '<li>高斯平滑处理数据(σ=2)，减少噪声影响</li>';
+    html += '<li>计算一阶导数，检测导数由正变负的点</li>';
+    html += '<li>验证峰高(>最大电流10%)和峰宽(≥3个数据点)</li>';
+    html += '</ol>';
+    html += '<table><tr><th>峰序数(n)</th><th>电压U<sub>G2K</sub>(V)</th><th>电流I(nA)</th><th>峰宽</th></tr>';
     processedData.peaks.forEach((peak, i) => {
-        html += `<tr><td>${i+1}</td><td>${peak.voltage.toFixed(2)}</td><td>${peak.current.toFixed(2)}</td></tr>`;
+        html += `<tr><td>${i+1}</td><td>${peak.voltage.toFixed(2)}</td><td>${peak.current.toFixed(2)}</td><td>${peak.width || '-'}</td></tr>`;
     });
     html += '</table>';
     
