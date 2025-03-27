@@ -344,14 +344,6 @@ function showCalculationProcess() {
         html += '<li>$a$ - 截距</li>';
         html += '</ul>';
         
-        html += '<h5>具体计算示例</h5>';
-        html += '<p>测试数据：</p>';
-        html += '<table><tr><th>n</th><th>U<sub>G2K</sub> (V)</th></tr>';
-        html += '<tr><td>1</td><td>12.5</td></tr>';
-        html += '<tr><td>2</td><td>24.8</td></tr>';
-        html += '<tr><td>3</td><td>37.2</td></tr>';
-        html += '<tr><td>4</td><td>49.6</td></tr>';
-        html += '<tr><td>5</td><td>62.0</td></tr></table>';
         
         html += '<p>最小二乘法计算步骤：</p>';
         html += '<ol>';
@@ -404,7 +396,6 @@ function showCalculationProcess() {
         html += '<li>ΔU - 第一激发电位</li>';
         html += '</ul>';
         html += `<p>计算结果：ΔE = ${(processedData.fit.slope * 1.602e-19).toExponential(2)} J</p>`;
-        html += `<p>温度当量：${(processedData.fit.slope * 1.602e-19 / 1.3806e-23).toFixed(0)} K</p>`;
     }
     
     processDiv.innerHTML = html;
@@ -428,7 +419,7 @@ function showResults() {
     
     let html = '<h3>实验结果</h3>';
     html += `<p>氩原子第一激发电位: <strong>${processedData.fit.slope.toFixed(2)} ± ${processedData.uncertainty.slopeError.toFixed(2)} V</strong></p>`;
-    html += `<p>能级差: <strong>${(processedData.fit.slope * 1.602e-19).toExponential(2)} J</strong> (${(processedData.fit.slope * 1.602e-19 / 1.3806e-23).toFixed(0)} K)</p>`;
+    html += `<p>能级差: <strong>${(processedData.fit.slope * 1.602e-19).toExponential(2)} J</strong></p>`;
     
     resultDiv.innerHTML = html;
 }
