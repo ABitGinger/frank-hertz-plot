@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>弗兰克-赫兹实验数据处理</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>弗兰克-赫兹实验数据处理</h1>
+        
+        <div class="upload-section">
+            <h2>数据上传</h2>
+            <input type="file" id="dataFile" accept=".md,.txt">
+            <div class="example">
+                <h3>数据格式示例</h3>
+                <pre>| UG2K/V | I/nA |
+| ---- | ---- |
+| 1.0 | 0.0 |
+| 2.0 | 0.0 |
+...</pre>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <h2>分析结果</h2>
+            <div class="chart-container">
+                <canvas id="resultChart"></canvas>
+            </div>
+            <div class="calculation-result">
+                <h3>计算结果</h3>
+                <div id="results"></div>
+            </div>
+        </div>
+
+        <div class="process-section">
+            <h2>计算过程</h2>
+            <div id="calculationProcess"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
