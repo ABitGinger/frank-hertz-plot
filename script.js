@@ -76,15 +76,14 @@ function processData(data) {
 // 识别电流峰值
 function findPeaks(data) {
     const peaks = [];
-    const maxCurrent = Math.max(...data.map(d => d.current));
-    const windowSize = Math.min(10, Math.max(3, Math.floor(data.length / 20))); // 动态窗口大小
+    const windowSize = 5; // 滑动窗口大小
     
     for (let i = windowSize; i < data.length - windowSize; i++) {
         let isPeak = true;
         
         // 检查左侧窗口
         for (let j = 1; j <= windowSize; j++) {
-            if (data[i].current < data[i - j].current * 0.95) { // 放宽左侧比较条件
+            if (data[i].current <= data[i - j].current) {
                 isPeak = false;
                 break;
             }
@@ -93,15 +92,15 @@ function findPeaks(data) {
         // 检查右侧窗口
         if (isPeak) {
             for (let j = 1; j <= windowSize; j++) {
-                if (data[i].current < data[i + j].current * 0.95) { // 放宽右侧比较条件
+                if (data[i].current <= data[i + j].current) {
                     isPeak = false;
                     break;
                 }
             }
         }
         
-        // 确保峰值电流足够大
-        if (isPeak && data[i].current > 0.05 * maxCurrent) { // 降低阈值
+        // 确保峰值电流足够大(避免噪声)
+        if (isPeak && data[i].current > 0.1 * Math.max(...data.map(d => d.current))) {
             peaks.push({
                 voltage: data[i].voltage,
                 current: data[i].current,
@@ -110,26 +109,7 @@ function findPeaks(data) {
         }
     }
     
-    // 确保至少有2个峰值点
-    if (peaks.length >= 2) {
-        return peaks;
-    }
-    
-    // 如果不足2个，放宽条件再检测一次
-    const backupPeaks = [];
-    for (let i = 3; i < data.length - 3; i++) {
-        if (data[i].current > data[i-1].current && 
-            data[i].current > data[i+1].current &&
-            data[i].current > 0.03 * maxCurrent) {
-            backupPeaks.push({
-                voltage: data[i].voltage,
-                current: data[i].current,
-                peakIndex: i
-            });
-        }
-    }
-    
-    return backupPeaks.length >= 2 ? backupPeaks : backupPeaks.slice(0, 2);
+    return peaks;
 }
 
 // 最小二乘法线性拟合
