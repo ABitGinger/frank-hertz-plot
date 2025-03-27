@@ -298,31 +298,116 @@ function showCalculationProcess() {
     const processDiv = document.getElementById('calculationProcess');
     if (!processDiv || !processedData) return;
     
-    let html = '<h3>计算过程</h3>';
+    let html = '<h3>详细计算过程</h3>';
     
-    // 峰值信息
-    html += '<h4>峰值点识别结果</h4>';
-    html += '<table><tr><th>峰序数</th><th>电压(V)</th><th>电流(nA)</th></tr>';
+    // 1. 峰值识别
+    html += '<h4>1. 峰值点识别</h4>';
+    html += '<p>采用滑动窗口法识别电流峰值点，窗口大小=5个数据点</p>';
+    html += '<table><tr><th>峰序数(n)</th><th>电压U<sub>G2K</sub>(V)</th><th>电流I(nA)</th></tr>';
     processedData.peaks.forEach((peak, i) => {
         html += `<tr><td>${i+1}</td><td>${peak.voltage.toFixed(2)}</td><td>${peak.current.toFixed(2)}</td></tr>`;
     });
     html += '</table>';
     
-    // 拟合过程
+    // 2. 最小二乘法拟合
     if (processedData.fit) {
-        html += '<h4>最小二乘法拟合</h4>';
-        html += `<p>拟合方程: U<sub>G2K</sub> = ${processedData.fit.intercept.toFixed(2)} + ${processedData.fit.slope.toFixed(2)} × n</p>`;
+        html += '<h4>2. 最小二乘法计算第一激发电位</h4>';
+        html += '<p>根据公式: U<sub>G2K</sub> = a + nΔU</p>';
+        html += '<p>其中: n为峰序数，ΔU为第一激发电位</p>';
+        
+        // 计算步骤
+        html += '<h5>2.1 计算各项和</h5>';
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        processedData.peaks.forEach((peak, i) => {
+            const x = i + 1;
+            const y = peak.voltage;
+            sumX += x;
+            sumY += y;
+            sumXY += x * y;
+            sumX2 += x * x;
+        });
+        html += `<p>Σn = ${sumX}</p>`;
+        html += `<p>ΣU<sub>G2K</sub> = ${sumY.toFixed(2)}</p>`;
+        html += `<p>Σ(n×U<sub>G2K</sub>) = ${sumXY.toFixed(2)}</p>`;
+        html += `<p>Σn² = ${sumX2}</p>`;
+        
+        // 斜率计算
+        const n = processedData.peaks.length;
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        html += '<h5>2.2 计算斜率(第一激发电位ΔU)</h5>';
+        html += `<p>ΔU = [n×Σ(nU<sub>G2K</sub>) - Σn×ΣU<sub>G2K</sub>] / [n×Σn² - (Σn)²]</p>`;
+        html += `<p>ΔU = [${n}×${sumXY.toFixed(2)} - ${sumX}×${sumY.toFixed(2)}] / [${n}×${sumX2} - ${sumX}²] = ${slope.toFixed(2)} V</p>`;
+        
+        // 截距计算
+        const intercept = (sumY - slope * sumX) / n;
+        html += '<h5>2.3 计算截距a</h5>';
+        html += `<p>a = [ΣU<sub>G2K</sub> - ΔU×Σn] / n = [${sumY.toFixed(2)} - ${slope.toFixed(2)}×${sumX}] / ${n} = ${intercept.toFixed(2)} V</p>`;
+        
+        // 拟合方程
+        html += '<h5>2.4 拟合结果</h5>';
+        html += `<p>拟合方程: U<sub>G2K</sub> = ${intercept.toFixed(2)} + ${slope.toFixed(2)} × n</p>`;
         html += `<p>相关系数 R² = ${processedData.fit.rSquared.toFixed(4)}</p>`;
     }
     
-    // 不确定度
+    // 3. 不确定度分析
     if (processedData.uncertainty) {
-        html += '<h4>不确定度分析</h4>';
-        html += `<p>斜率不确定度: ±${processedData.uncertainty.slopeError.toFixed(4)} V</p>`;
-        html += `<p>95%置信区间: [${processedData.uncertainty.confidenceInterval.lower.toFixed(2)}, ${processedData.uncertainty.confidenceInterval.upper.toFixed(2)}] V</p>`;
+        html += '<h4>3. 不确定度分析</h4>';
+        
+        // 计算残差平方和
+        let sumResiduals2 = 0;
+        processedData.peaks.forEach((peak, i) => {
+            const x = i + 1;
+            const y = peak.voltage;
+            const f = processedData.fit.slope * x + processedData.fit.intercept;
+            sumResiduals2 += Math.pow(y - f, 2);
+        });
+        html += `<h5>3.1 残差平方和 Σ(y<sub>i</sub>-ŷ<sub>i</sub>)² = ${sumResiduals2.toFixed(4)}</h5>`;
+        
+        // 计算标准差
+        const s = Math.sqrt(sumResiduals2 / (processedData.peaks.length - 2));
+        html += `<h5>3.2 标准差 s = √[Σ(y<sub>i</sub>-ŷ<sub>i</sub>)²/(n-2)] = √[${sumResiduals2.toFixed(4)}/${processedData.peaks.length-2}] = ${s.toFixed(4)}</h5>`;
+        
+        // 计算Sxx
+        let sumX = 0, sumX2 = 0;
+        processedData.peaks.forEach((peak, i) => {
+            const x = i + 1;
+            sumX += x;
+            sumX2 += x * x;
+        });
+        const Sxx = sumX2 - Math.pow(sumX, 2) / processedData.peaks.length;
+        html += `<h5>3.3 S<sub>xx</sub> = Σn² - (Σn)²/n = ${sumX2} - ${sumX}²/${processedData.peaks.length} = ${Sxx.toFixed(2)}</h5>`;
+        
+        // 斜率不确定度
+        const slopeError = s / Math.sqrt(Sxx);
+        html += `<h5>3.4 斜率不确定度 u(ΔU) = s/√S<sub>xx</sub> = ${s.toFixed(4)}/√${Sxx.toFixed(2)} = ${slopeError.toFixed(4)} V</h5>`;
+        
+        // 置信区间
+        const tValue = 2.776; // 对于n=5, 95%置信度
+        html += `<h5>3.5 95%置信区间 ΔU ± t×u(ΔU) = ${processedData.fit.slope.toFixed(2)} ± ${tValue * slopeError.toFixed(4)} V</h5>`;
+        html += `<p>最终结果: ΔU = ${processedData.fit.slope.toFixed(2)} ± ${processedData.uncertainty.slopeError.toFixed(2)} V</p>`;
+    }
+    
+    // 4. 能级差计算
+    if (processedData.fit) {
+        html += '<h4>4. 能级差计算</h4>';
+        html += '<p>根据公式: ΔE = eΔU</p>';
+        html += `<p>其中: e = 1.602×10<sup>-19</sup> C (电子电荷)</p>`;
+        const deltaE = processedData.fit.slope * 1.602e-19;
+        html += `<p>ΔE = ${processedData.fit.slope.toFixed(2)} V × 1.602×10<sup>-19</sup> C = ${deltaE.toExponential(2)} J</p>`;
+        html += `<p>换算为温度: ΔE/k<sub>B</sub> = ${deltaE}/1.3806×10<sup>-23</sup> = ${(deltaE / 1.3806e-23).toFixed(0)} K</p>`;
     }
     
     processDiv.innerHTML = html;
+    
+    // 渲染数学公式
+    if (window.katex) {
+        const mathElements = processDiv.querySelectorAll('.math');
+        mathElements.forEach(el => {
+            katex.render(el.textContent, el, {
+                throwOnError: false
+            });
+        });
+    }
 }
 
 // 显示计算结果
